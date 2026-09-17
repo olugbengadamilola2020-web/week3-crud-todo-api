@@ -4,7 +4,9 @@ const express = require('express');
 const cors = require('cors');
 const logRequest = require('./logger');
 const validateTodo = require('./validator.js');
+const validatePatchTodo = require('./validatePatch.js');
 const errorHandler = require('./errorHandler.js');
+const { any } = require('joi');
 const app = express();
 app.use(express.json());
 
@@ -58,7 +60,7 @@ app.post('/todos', validateTodo, (req, res, next) => {
     }
 });
 
-app.patch("/todos/:id", validateTodo, (req, res, next) => {
+app.patch("/todos/:id", validatePatchTodo, (req, res, next) => {
     try {
         const todo = todos.find(t => t.id === parseInt(req.params.id));
     if (!todo) return res.status(404).json({ message: "Todo not found" });
