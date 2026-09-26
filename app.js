@@ -1,38 +1,45 @@
 require('dotenv').config();
 
+const connectDB = require('./database/db.js');
 const express = require('express');
 const cors = require('cors');
 const logRequest = require('./logger');
 const validateTodo = require('./validator.js');
 const validatePatchTodo = require('./validatePatch.js');
 const errorHandler = require('./errorHandler.js');
+const Todo = require("./model/todo.model.js");
+const dns = require('dns');
 const { any } = require('joi');
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
+connectDB();
+
 const app = express();
 app.use(express.json());
-
 app.use(cors());
-
 app.use(logRequest);
 
-let todos = [
-    { id: 1, task: 'Learn Node.js', completed: false},
-    { id :2, task: 'Build CRUD API', completed: false},
-];
 
-app.get('/todos', (req, res, next) => {
+app.get('/todos', async (req, res, next) => {
+
+    const todos = await Todo.find({});
     res.status(200).json(todos);
 });
 
-app.get('/todos/active', (req, res, next) => {
-    const activeTodos = todo.filter((td) => td.completed === false);
-
-    res.status(200).json(activeTodos);
+app.get('/todos/completed', async (req, res, next) => {
+    try {
+        const completed = await Todo.find({ completed: true })
+    res.json(completed);
+    } catch (error) {
+        next(error);
+    }
 });
 
-app.get('/todos/:id' , (req, res, next) => {
+app.get('/todos/:id' , async (req, res, next) => {
     try { 
-        const id = parseInt(req.params.id);
-        const todo = todos.find((t) => t.id === id);
+        
+        const todo = await Todo.findById(req.params.id)
 
         if (!todo) {
            return res.status(404).json({ message: 'Todo not found' });
@@ -44,53 +51,51 @@ app.get('/todos/:id' , (req, res, next) => {
     }
 });
 
-app.post('/todos', validateTodo, (req, res, next) => {
+app.post('/todos', validateTodo, async (req, res, next) => {
     try {
-        const { task  } = req.body;
+const { task, completed } = req.body;
 
-    if (!task) {
-        return res.status(400).json({ message: 'Please send the task' });
-    }
+const newTodo = new Todo({
+    task,
+    completed,
+});
 
-    const newTodo = { id: todos.length + 1, ...req.body };
-    todos.push(newTodo);
-    res.status(201).json(newTodo);
+await newTodo.save();
+
+        res.status(201).json(newTodo);
     } catch (error) {
         next(error);
     }
 });
 
-app.patch("/todos/:id", validatePatchTodo, (req, res, next) => {
+app.patch("/todos/:id", validatePatchTodo, async (req, res, next) => {
     try {
-        const todo = todos.find(t => t.id === parseInt(req.params.id));
-    if (!todo) return res.status(404).json({ message: "Todo not found" });
-Object.assign(todo, req.body); 
+     const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, {
+        new: true
+     })
+      if (!todo) {
+           return res.status(404).json({ message: 'Todo not found' });
+        }
+
 res.status(200).json(todo);
     } catch (error) {
         next(error);
     }
 });
 
-app.delete("/todos/:id", (req, res, next) => {
+app.delete("/todos/:id", async (req, res, next) => {
    try {
-     const id = parseInt(req.params.id);
-    const initialLength = todos.length;
-    todos = todos.filter(t => t.id !== id);
-    if (todos.length === initialLength) return res.status(404).json({ error: "Not found" });
-    res.status(204).send();
+     
+    const todo = await Todo.findByIdAndDelete(req.params.id)
+    if (!todo) {
+           return res.status(404).json({ message: 'Todo not found' });
+        }
+        res.status(200).json({message: `Todo ${req.params.id} deleted`})
    } catch (error) {
     next(error);
    }
 });
 
-app.get('/todos/completed', (req, res, next) => {
-    try {
-        const completed = todos.filter((t) => t.completed);
-    res.json(completed);
-    } catch (error) {
-        next(error);
-    }
-});
 
 app.use(errorHandler);
 
