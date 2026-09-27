@@ -36,6 +36,19 @@ app.get('/todos/completed', async (req, res, next) => {
     }
 });
 
+app.get('/todos', async (req, res, next) => {
+  try {
+    const filter = {};
+   if (req.query.completed === 'false') filter.completed = false;
+   if (req.query.completed === 'true') filter.completed = true;
+   
+    const todos = await Todo.find(filter);
+    res.json(todos);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/todos/:id' , async (req, res, next) => {
     try { 
         
@@ -50,6 +63,7 @@ app.get('/todos/:id' , async (req, res, next) => {
         next(error);
     }
 });
+
 
 app.post('/todos', validateTodo, async (req, res, next) => {
     try {
